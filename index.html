@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PYQs Bot Configuration</title>
+    <title>PYQs Bot</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,60 +14,184 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-r from-blue-100 to-purple-100 flex justify-center items-center min-h-screen p-4">
-    <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md transition-transform hover:scale-105">
-        <h1 class="text-2xl font-semibold text-blue-600 mb-6 text-center">PYQs Bot Configuration</h1>
-        <div class="mb-4">
-            <label for="apiKeyInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter API Key:</label>
-            <input type="text" id="apiKeyInput" placeholder="Enter your OpenRouter API Key" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+<body class="bg-gradient-to-r from-blue-100 to-purple-100 min-h-screen flex flex-col">
+    <div id="config-page" class="flex-grow justify-center items-center p-4" style="display: flex;">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md transition-transform hover:scale-105">
+            <h1 class="text-2xl font-semibold text-blue-600 mb-6 text-center">PYQs Bot Configuration</h1>
+            <div class="mb-4">
+                <label for="apiKeyInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter API Key:</label>
+                <input type="text" id="apiKeyInput" placeholder="Enter your OpenRouter API Key" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            <div class="mb-4">
+                <label for="baseUrlInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter Base URL:</label>
+                <input type="text" id="baseUrlInput" placeholder="Enter OpenRouter Base URL (e.g., https://openrouter.ai/api/v1)" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+             <div class="mb-4">
+                <label for="modelNameInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter Model Name:</label>
+                <input type="text" id="modelNameInput" placeholder="Enter OpenRouter Model Name (e.g., openai/gpt-3.5-turbo)" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            <button id="saveConfigButton" class="bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition duration-300 ease-in-out">
+                Save Configuration & Proceed
+            </button>
+            <p id="config-error-message" class="text-red-500 text-xs italic mt-4 text-center"></p>
         </div>
-        <div class="mb-4">
-            <label for="baseUrlInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter Base URL:</label>
-            <input type="text" id="baseUrlInput" placeholder="Enter OpenRouter Base URL (e.g., https://openrouter.ai/api/v1)" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+    </div>
+
+    <div id="questions-page" class="flex-grow justify-start items-center p-4" style="display: none;">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl transition-transform hover:scale-105">
+            <h1 class="text-2xl font-semibold text-indigo-600 mb-4 text-center">Generate PYQs</h1>
+            <div class="mb-4">
+                <label for="questionPromptInput" class="block text-gray-700 text-sm font-bold mb-2">Describe your Question:</label>
+                <input type="text" id="questionPromptInput" placeholder="E.g., Most repeated questions of JEE mains" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            <div class="mb-4">
+                <label for="numQuestionsInput" class="block text-gray-700 text-sm font-bold mb-2">Number of Questions (Max 25):</label>
+                <input type="number" id="numQuestionsInput" min="1" max="25" value="5" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            <button id="startQuizButton" class="bg-gradient-to-r from-purple-400 to-pink-500 hover:from-purple-500 hover:to-pink-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition duration-300 ease-in-out mb-4">
+                Start Quiz
+            </button>
+            <p id="questions-error-message" class="text-red-500 text-xs italic mt-4 text-center"></p>
+            <div id="questionsDisplayArea" class="mt-4 p-4 bg-gray-50 rounded-md border border-gray-200">
+                </div>
         </div>
-        <div class="mb-6">
-            <label for="modelNameInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter Model Name:</label>
-            <input type="text" id="modelNameInput" placeholder="Enter OpenRouter Model Name (e.g., openai/gpt-3.5-turbo)" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-        </div>
-        <button id="saveConfigButton" class="bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition duration-300 ease-in-out">
-            Save Configuration & Proceed
-        </button>
-        <p id="error-message" class="text-red-500 text-xs italic mt-4 text-center"></p>
     </div>
 
     <script>
-        document.getElementById('saveConfigButton').addEventListener('click', function() {
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
-            const baseUrl = document.getElementById('baseUrlInput').value.trim();
-            const modelName = document.getElementById('modelNameInput').value.trim();
-            const errorMessage = document.getElementById('error-message');
+        // --- JavaScript ---
 
-            if (!apiKey) {
-                errorMessage.textContent = "Please enter your OpenRouter API Key.";
-                return;
-            }
-            if (!baseUrl) {
-                errorMessage.textContent = "Please enter your OpenRouter Base URL.";
-                return;
-            }
-             if (!modelName) {
-                errorMessage.textContent = "Please enter your OpenRouter Model Name.";
-                return;
-            }
+        // --- Configuration Page ---
+        const configPage = document.getElementById('config-page');
+        const questionsPage = document.getElementById('questions-page');
+        const saveConfigButton = document.getElementById('saveConfigButton');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const baseUrlInput = document.getElementById('baseUrlInput');
+        const modelNameInput = document.getElementById('modelNameInput');
+        const configErrorMessage = document.getElementById('config-error-message');
 
-            // Basic URL validation (check for a valid protocol and domain)
-            try {
-                new URL(baseUrl);
-            } catch (_) {
-                errorMessage.textContent = "Please enter a valid Base URL (e.g., https://openrouter.ai/api/v1).";
-                return;
-            }
+        if (saveConfigButton) { // Check if the element exists
+            saveConfigButton.addEventListener('click', function() {
+                const apiKey = apiKeyInput.value.trim();
+                const baseUrl = baseUrlInput.value.trim();
+                const modelName = modelNameInput.value.trim();
 
-            localStorage.setItem('apiKey', apiKey);
-            localStorage.setItem('baseUrl', baseUrl);
-            localStorage.setItem('modelName', modelName);
-            window.location.href = 'questions.html'; // Redirect to the next page
-        });
+                if (!apiKey) {
+                    configErrorMessage.textContent = "Please enter your OpenRouter API Key.";
+                    return;
+                }
+                if (!baseUrl) {
+                    configErrorMessage.textContent = "Please enter your OpenRouter Base URL.";
+                    return;
+                }
+                if (!modelName) {
+                    configErrorMessage.textContent = "Please enter your OpenRouter Model Name.";
+                    return;
+                }
+
+                // Basic URL validation
+                try {
+                    new URL(baseUrl);
+                } catch (_) {
+                    configErrorMessage.textContent = "Please enter a valid Base URL (e.g., https://openrouter.ai/api/v1).";
+                    return;
+                }
+
+                localStorage.setItem('apiKey', apiKey);
+                localStorage.setItem('baseUrl', baseUrl);
+                localStorage.setItem('modelName', modelName);
+
+                configPage.style.display = 'none';
+                questionsPage.style.display = 'flex';
+            });
+        }
+
+
+        // --- Question Generation Page ---
+        const startQuizButton = document.getElementById('startQuizButton');
+        const questionPromptInput = document.getElementById('questionPromptInput');
+        const numQuestionsInput = document.getElementById('numQuestionsInput');
+        const questionsDisplayArea = document.getElementById('questionsDisplayArea');
+        const questionsErrorMessage = document.getElementById('questions-error-message');
+
+
+        if (startQuizButton) {
+            startQuizButton.addEventListener('click', async function() {
+                const apiKey = localStorage.getItem('apiKey');
+                const baseUrl = localStorage.getItem('baseUrl');
+                const modelName = localStorage.getItem('modelName');
+                const questionPrompt = questionPromptInput.value.trim();
+                const numQuestions = parseInt(numQuestionsInput.value);
+
+                if (!questionPrompt) {
+                    questionsErrorMessage.textContent = "Please describe the questions you want to generate.";
+                    return;
+                }
+                if (isNaN(numQuestions) || numQuestions < 1 || numQuestions > 25) {
+                    questionsErrorMessage.textContent = "Please enter a valid number of questions (1-25).";
+                    return;
+                }
+
+                questionsErrorMessage.textContent = '';
+                questionsDisplayArea.innerHTML = '<p class="text-gray-500 italic">Loading questions...</p>';
+
+                try {
+                    const response = await fetch(`${baseUrl}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`,
+                        },
+                        body: JSON.stringify({
+                            model: modelName,
+                            prompt: questionPrompt,
+                            max_tokens: 1500,
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`OpenRouter API error: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    displayQuestions(data);
+                } catch (error) {
+                    console.error('Error fetching questions:', error);
+                    questionsDisplayArea.innerHTML = `<p class="text-red-500">Failed to fetch questions: ${error.message}</p>`;
+                }
+            });
+        }
+
+
+        function displayQuestions(data) {
+            questionsDisplayArea.innerHTML = '';
+
+            if (data && data.choices && Array.isArray(data.choices)) {
+                if (data.choices.length === 0) {
+                    questionsDisplayArea.innerHTML = '<p class="text-gray-500 italic">No questions generated.</p>';
+                    return;
+                }
+                data.choices.forEach((choice, index) => {
+                    const questionElement = document.createElement('div');
+                    questionElement.classList.add('question', 'mb-4', 'p-4', 'rounded-md', 'bg-white', 'shadow-sm');
+                    // Use a regular expression to replace newlines with <br> tags for better formatting
+                    const formattedContent = choice.message.content.replace(/\n/g, '<br>');
+                    questionElement.innerHTML = `<p class="text-gray-800"><strong>Question ${index + 1}:</strong> ${formattedContent}</p>`;
+                    questionsDisplayArea.appendChild(questionElement);
+                });
+            } else {
+                questionsDisplayArea.innerHTML = '<p class="text-gray-500 italic">Invalid response format from OpenRouter.</p>';
+            }
+        }
+
+        // --- Initial Setup ---
+        // Check if API key and base URL are in localStorage, if so, skip config page
+        if (localStorage.getItem('apiKey') && localStorage.getItem('baseUrl') && localStorage.getItem('modelName')) {
+            configPage.style.display = 'none';
+            questionsPage.style.display = 'flex';
+        } else {
+            configPage.style.display = 'flex';
+            questionsPage.style.display = 'none';
+        }
     </script>
 </body>
 </html>
