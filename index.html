@@ -2,413 +2,228 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI PYQs Bot (OpenRouter)</title>
+    <title>PYQ Bot - Powered by OpenRouter</title>
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/auto-render.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .section {
+            display: none;
+        }
+        .section.active {
+            display: block;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        label {
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .question {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #questions-container {
+            margin-top: 20px;
+        }
+        #loading {
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Homescreen Section -->
+        <div id="home" class="section active">
+            <h1>Welcome to PYQ Bot!</h1>
+            <form id="api-form">
+                <label for="api-key">Enter Your OpenRouter API Key:</label>
+                <input type="text" id="api-key" required>
+                <button type="submit">Proceed</button>
+            </form>
+            <p><small>Get your API key from <a href="https://openrouter.ai" target="_blank">OpenRouter</a>.</small></p>
+        </div>
 
-    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+        <!-- Customization Section -->
+        <div id="customize" class="section">
+            <h1>Customize Your Questions</h1>
+            <form id="customize-form">
+                <label for="question-type">What kind of questions?</label>
+                <input type="text" id="question-type" placeholder="e.g., Most repeated questions of JEE Mains" required>
+                
+                <label for="num-questions">Number of Questions (Max 25):</label>
+                <input type="number" id="num-questions" min="1" max="25" required>
+                
+                <label for="model-name">Model Name:</label>
+                <input type="text" id="model-name" placeholder="e.g., xai/grok" required>
+                
+                <button type="submit">Start</button>
+            </form>
+            <p><small>Available models: <a href="https://openrouter.ai/models" target="_blank">OpenRouter Models</a></small></p>
+        </div>
+
+        <!-- Solver Section -->
+        <div id="solver" class="section">
+            <h1>Your Custom Questions</h1>
+            <div id="loading">Loading questions...</div>
+            <div id="questions-container"></div>
+            <button id="back-btn">Back to Customize</button>
+        </div>
+    </div>
 
     <script>
-        window.MathJax = {
-          tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]']]
-          },
-          svg: {
-            fontCache: 'global'
-          }
-        };
-    </script>
-    <script type="text/javascript" id="MathJax-script" async
-      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
-    </script>
-
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        .hidden-element { display: none; }
-        .option-button { transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease; }
-        .option-button:not(:disabled):hover { background-color: #e5e7eb; border-color: #9ca3af; }
-        .option-button:not(:disabled):active { transform: scale(0.98); }
-        .correct-answer { background-color: #10b981 !important; color: white !important; border-color: #059669 !important; }
-        .incorrect-answer { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
-        button:disabled { opacity: 0.6; cursor: not-allowed; }
-        mjx-container { overflow-x: auto; overflow-y: hidden; display: block; margin: 0.5rem 0; padding: 2px; }
-        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #4f46e5; animation: spin 1s ease infinite; display: inline-block; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #question-text, #explanation-text, .option-button { word-wrap: break-word; overflow-wrap: break-word; }
-        /* Select arrow removed as dropdown is gone */
-    </style>
-
-</head>
-<body class="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 p-4">
-
-    <div class="container mx-auto max-w-2xl w-full bg-white rounded-xl shadow-2xl overflow-hidden">
-
-        <div id="setup-page" class="p-6 md:p-10 transition-all duration-500">
-            <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">AI PYQs Bot Setup</h1>
-            <p class="text-center text-gray-600 mb-8">Enter your OpenRouter API details.</p>
-            <div class="space-y-5">
-                <div>
-                    <label for="apiKey" class="block text-sm font-medium text-gray-700 mb-1">OpenRouter API Key <span class="text-red-500">*</span></label>
-                    <input type="password" id="apiKey" name="apiKey" placeholder="Enter your OpenRouter API Key (sk-or-...)" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
-                    <p class="mt-1 text-xs text-gray-500">Stored temporarily in browser session. <strong class="text-red-600">Handle with care.</strong></p>
-                </div>
-                <div>
-                    <label for="baseUrl" class="block text-sm font-medium text-gray-700 mb-1">Base URL (Optional)</label>
-                    <input type="url" id="baseUrl" name="baseUrl" placeholder="Default: https://openrouter.ai/api/v1" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
-                     <p class="mt-1 text-xs text-gray-500">Leave blank for default or enter custom endpoint/proxy.</p>
-                </div>
-                <div id="openrouter-model-container">
-                    <label for="openRouterModel" class="block text-sm font-medium text-gray-700 mb-1">OpenRouter Model Name <span class="text-red-500">*</span></label>
-                    <input type="text" id="openRouterModel" name="openRouterModel" placeholder="e.g., google/gemini-1.5-flash, anthropic/claude-3-haiku" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
-                    <p class="mt-1 text-xs text-gray-500">Specify the exact model to use via OpenRouter (see OpenRouter docs for available models).</p>
-                </div>
-                 <div id="setup-error" class="text-red-600 text-sm hidden-element font-medium text-center p-2 bg-red-50 rounded-md border border-red-200"></div>
-                <button id="submit-setup" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Continue to Customization</button>
-            </div>
-        </div>
-
-        <div id="customization-page" class="hidden-element p-6 md:p-10 transition-all duration-500">
-             <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Customize Your Quiz</h1>
-            <p class="text-center text-gray-600 mb-8">Describe the questions you need. Be specific!</p>
-            <div class="space-y-5">
-                <div>
-                    <label for="questionPrompt" class="block text-sm font-medium text-gray-700 mb-1">Question Prompt <span class="text-red-500">*</span></label>
-                    <textarea id="questionPrompt" name="questionPrompt" rows="4" placeholder="E.g., '5 most repeated PYQs from JEE Mains Physics (Kinematics)', 'Easy difficulty Thermodynamics questions for NEET UG', 'Hard level questions on Nucleophilic Substitution from Alkyl Halides for JEE Advanced'" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"></textarea>
-                     <p class="mt-1 text-xs text-gray-500">Mention exam, subject, topic, difficulty, PYQs if needed.</p>
-                </div>
-                <div>
-                    <label for="numQuestions" class="block text-sm font-medium text-gray-700 mb-1">Number of Questions (1-25) <span class="text-red-500">*</span></label>
-                    <input type="number" id="numQuestions" name="numQuestions" min="1" max="25" value="5" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
-                </div>
-                 <div id="customization-error" class="text-red-600 text-sm hidden-element font-medium text-center p-2 bg-red-50 rounded-md border border-red-200"></div>
-                <button id="start-quiz" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Generate & Start Quiz</button>
-                 <button id="back-to-setup" class="w-full mt-2 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">Back to API Setup</button>
-            </div>
-             <div id="loading-indicator" class="hidden-element mt-6 text-center">
-                <p id="loading-text" class="text-indigo-600 font-semibold mb-3">Generating questions...</p>
-                <div class="spinner mx-auto"></div>
-                <p class="text-sm text-gray-500 mt-3">This may take a few moments, please wait.</p>
-            </div>
-        </div>
-
-        <div id="quiz-page" class="hidden-element p-6 md:p-10 transition-all duration-500">
-             <div class="flex justify-between items-center mb-5 border-b pb-3 border-gray-200">
-                <h2 class="text-2xl font-bold text-gray-800">Quiz Time!</h2>
-                 <button id="exit-quiz" title="Exit Quiz" class="text-sm bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-1 px-3 rounded-md shadow-sm transition duration-300 border border-red-200">Exit</button>
-            </div>
-            <div class="mb-6">
-                <div class="flex justify-between mb-1">
-                    <span class="text-sm font-medium text-indigo-700">Progress</span>
-                    <span id="progress-text" class="text-sm font-medium text-indigo-700">Question 1 / 10</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                    <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-500 ease-out" style="width: 10%"></div>
-                </div>
-            </div>
-            <div id="question-container" class="mb-6 p-5 border border-gray-200 rounded-lg bg-gray-50 min-h-[120px] shadow-sm">
-                <p id="question-text" class="text-lg text-gray-900 leading-relaxed">Loading question...</p>
-            </div>
-            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
-            <div id="feedback-container" class="min-h-[60px] mb-6">
-                 <p id="feedback-text" class="text-center font-semibold text-xl"></p>
-                 <div id="explanation-area" class="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-800 hidden-element shadow-sm">
-                     <strong class="text-blue-800 block mb-1 text-base">Explanation:</strong>
-                     <div id="explanation-text" class="leading-relaxed"></div>
-                 </div>
-            </div>
-            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
-                <button id="prev-button" disabled class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-md shadow transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
-                <button id="next-button" disabled class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md shadow transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
-                <button id="finish-button" disabled class="hidden-element bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md shadow transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">Finish Quiz</button>
-            </div>
-        </div>
-
-        <div id="results-page" class="hidden-element p-8 md:p-12 rounded-lg text-center">
-             <svg class="w-16 h-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <h2 class="text-3xl font-bold text-gray-800 mb-4">Quiz Completed!</h2>
-            <p class="text-xl text-gray-700 mb-8">Your Score: <span id="final-score" class="font-bold text-indigo-600 text-2xl">0 / 0</span></p>
-            <div class="space-y-3 md:space-y-0 md:space-x-4 flex flex-col md:flex-row justify-center">
-                 <button id="restart-quiz" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-md shadow transition duration-300">Restart with Same Settings</button>
-                 <button id="new-quiz" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-md shadow transition duration-300">Start New Quiz</button>
-            </div>
-        </div>
-
-
-    </div> <script>
-        // --- DOM Elements ---
-        const setupPage = document.getElementById('setup-page');
-        const customizationPage = document.getElementById('customization-page');
-        const quizPage = document.getElementById('quiz-page');
-        const resultsPage = document.getElementById('results-page');
-        // Removed apiProviderSelect
-        const apiKeyInput = document.getElementById('apiKey');
-        const baseUrlInput = document.getElementById('baseUrl');
-        const openRouterModelContainer = document.getElementById('openrouter-model-container');
-        const openRouterModelInput = document.getElementById('openRouterModel');
-        const submitSetupButton = document.getElementById('submit-setup');
-        const setupError = document.getElementById('setup-error');
-        const questionPromptInput = document.getElementById('questionPrompt');
-        const numQuestionsInput = document.getElementById('numQuestions');
-        const startQuizButton = document.getElementById('start-quiz');
-        const backToSetupButton = document.getElementById('back-to-setup');
-        const customizationError = document.getElementById('customization-error');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const loadingText = document.getElementById('loading-text');
-        const questionTextElement = document.getElementById('question-text');
-        const optionsContainer = document.getElementById('options-container');
-        const feedbackTextElement = document.getElementById('feedback-text');
-        const explanationArea = document.getElementById('explanation-area');
-        const explanationTextElement = document.getElementById('explanation-text');
-        const prevButton = document.getElementById('prev-button');
-        const nextButton = document.getElementById('next-button');
-        const finishButton = document.getElementById('finish-button');
-        const exitQuizButton = document.getElementById('exit-quiz');
-        const progressTextElement = document.getElementById('progress-text');
-        const progressBarElement = document.getElementById('progress-bar');
-        const finalScoreElement = document.getElementById('final-score');
-        const restartQuizButton = document.getElementById('restart-quiz');
-        const newQuizButton = document.getElementById('new-quiz');
-
-        // --- State Variables ---
         let apiKey = '';
-        let baseUrl = '';
-        // Removed selectedProvider
-        let modelName = ''; // Holds the OpenRouter model name
-        let currentQuestions = [];
-        let currentQuestionIndex = 0;
-        let userAnswers = [];
-        let score = 0;
-        let quizSettings = { model: '', prompt: '', numQuestions: 0 }; // Removed provider
 
-        // --- Constants ---
-        // Removed Deepseek constants
-        const OPENROUTER_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
-        const OPENROUTER_REFERER_URL = window.location.origin || 'http://localhost'; // Use current origin or fallback
-        const OPENROUTER_APP_NAME = 'AI-PYQ-Bot'; // Replace if deploying with specific name
-        const MAX_RETRIES = 1;
-        const RETRY_DELAY_MS = 2000;
-        const REQUEST_TIMEOUT_MS = 90000;
-
-        // --- Helper Functions ---
-        function showPage(pageId) { [setupPage, customizationPage, quizPage, resultsPage].forEach(page => { page.classList.toggle('hidden-element', page.id !== pageId); }); window.scrollTo(0, 0); }
-        function displayError(element, message) { element.textContent = message; element.classList.remove('hidden-element'); }
-        function hideError(element) { element.textContent = ''; element.classList.add('hidden-element'); }
-        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-        // --- Setup Page Logic (Simplified)---
-        // Removed updateSetupUI and listener
-        submitSetupButton.addEventListener('click', () => {
-            hideError(setupError); let isValid = true;
-            const key = apiKeyInput.value.trim(); if (!key) { displayError(setupError, "OpenRouter API Key is required."); apiKeyInput.focus(); isValid = false; } else { apiKey = key; }
-            const orModel = openRouterModelInput.value.trim(); if (!orModel) { displayError(setupError, "OpenRouter Model Name is required."); openRouterModelInput.focus(); isValid = false; } else { modelName = orModel; }
-            baseUrl = baseUrlInput.value.trim();
-            if (isValid) { console.log("Setup Complete:", { model: modelName, apiKey: '***', baseUrl: baseUrl || '(Default)' }); showPage('customization-page'); }
-        });
-
-        // --- API Call Logic ---
-
-        // Function to parse the AI response and validate questions
-        function parseAndValidateApiResponse(aiContent, numQuestionsRequested, fullApiResponse) {
-            // Check for empty/null content first
-            if (aiContent === null || aiContent === undefined || aiContent.trim() === '') {
-                 const finishReason = fullApiResponse?.choices?.[0]?.finish_reason;
-                 console.error("AI returned empty or null content. Finish reason:", finishReason); console.error("--- Full API Response Data (Empty Content Case) ---"); console.error(JSON.stringify(fullApiResponse, null, 2)); console.error("--- End Full API Response Data ---");
-                 throw new Error(`AI response format error: Received empty content. Finish reason: ${finishReason || 'unknown'}. Check model name, API account status, or content filtering. See console for full API response.`);
-            }
-            const trimmedContent = aiContent.trim();
-            // Check if response starts/ends with brackets
-            if (!trimmedContent.startsWith('[') || !trimmedContent.endsWith(']')) {
-                 console.error("AI response does not start/end with '[]'. Format violation."); console.error("--- Raw AI Content Start ---"); console.error(trimmedContent); console.error("--- Raw AI Content End ---"); console.error("--- Full API Response Data (Bracket Check Fail) ---"); console.error(JSON.stringify(fullApiResponse, null, 2)); console.error("--- End Full API Response Data ---");
-                 throw new Error("AI response format error: Response did not start/end with '[]'. Check console log for raw/full output. Could be truncation or added text.");
-            }
-
-            let parsedQuestions;
-            try {
-                parsedQuestions = JSON.parse(trimmedContent);
-            } catch (parseError) {
-                // ** Enhanced logging for the specific {} error **
-                console.error("JSON Parsing Error Object:", parseError); // Log the raw error object
-                console.error("Type of parseError:", typeof parseError);
-                try { console.error("Stringified parseError:", JSON.stringify(parseError)); } catch { console.error("Could not stringify parseError"); }
-                console.error("Message property:", parseError.message); // Log message property if exists
-                console.error("--- Raw AI Content Which Failed Parsing ---");
-                console.error(trimmedContent); // Log the exact string that failed
-                console.error("--- End Raw AI Content ---");
-                console.error("--- Full API Response Data (Parsing Fail) ---");
-                console.error(JSON.stringify(fullApiResponse, null, 2));
-                console.error("--- End Full API Response Data ---");
-                // Throw a more informative error
-                throw new Error(`AI response format error: JSON.parse failed on received content (See console for error object details: ${parseError.message || 'No message property'}). Content logged above. This might indicate hidden characters or encoding issues from the API/model.`);
-            }
-
-            // Validation (Same as before)
-            if (!Array.isArray(parsedQuestions)) { throw new Error("AI response format error: Parsed content is not a JSON array."); }
-            const validatedQuestions = parsedQuestions.map((q, index) => { /* ... validation logic ... */ if (typeof q !== 'object' || q === null || typeof q.question !== 'string' || !q.question.trim() || !Array.isArray(q.options) || q.options.length < 2 || typeof q.correctAnswerIndex !== 'number' || !Number.isInteger(q.correctAnswerIndex) || q.correctAnswerIndex < 0 || q.correctAnswerIndex >= q.options.length || typeof q.explanation !== 'string') { console.warn(`Skipping question at index ${index} due to invalid format or missing fields:`, q); return null; } const validOptions = q.options.every(opt => typeof opt === 'string' && opt.trim()); if (!validOptions) { console.warn(`Skipping question at index ${index} due to invalid or empty options:`, q.options); return null; } return { question: q.question.trim(), options: q.options.map(opt => String(opt).trim()), correctAnswerIndex: q.correctAnswerIndex, explanation: q.explanation.trim() || "No explanation provided." }; }).filter(q => q !== null);
-            if (validatedQuestions.length === 0) { throw new Error("AI returned content, but no questions were in the expected valid JSON format after parsing."); }
-            console.log(`Successfully validated ${validatedQuestions.length} questions.`); if (validatedQuestions.length < numQuestionsRequested) { console.warn(`AI returned only ${validatedQuestions.length} valid questions out of ${numQuestionsRequested} requested.`); }
-            return validatedQuestions.slice(0, numQuestionsRequested);
+        // Show/hide sections
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
         }
 
+        // Handle API form submission
+        document.getElementById('api-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            apiKey = document.getElementById('api-key').value;
+            showSection('customize');
+        });
 
-        // Main function to fetch questions (OpenRouter only)
-        async function fetchQuestions(prompt, numQuestions) {
-            const providerName = "OpenRouter"; // Hardcoded
-            console.log(`Fetching ${numQuestions} questions from ${providerName} API using model: ${modelName}...`);
-            loadingText.textContent = `Generating questions via ${providerName} (${modelName})...`;
-            loadingIndicator.classList.remove('hidden-element');
-            startQuizButton.disabled = true;
-            hideError(customizationError);
+        // Handle customization form submission
+        document.getElementById('customize-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const questionType = document.getElementById('question-type').value;
+            const numQuestions = parseInt(document.getElementById('num-questions').value);
+            const modelName = document.getElementById('model-name').value;
 
-            // Configure API details for OpenRouter
-            const apiUrl = (baseUrl || OPENROUTER_DEFAULT_BASE_URL).replace(/\/$/, '') + '/chat/completions';
-            const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, 'HTTP-Referer': OPENROUTER_REFERER_URL, 'X-Title': OPENROUTER_APP_NAME };
+            // Show loading message
+            showSection('solver');
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('questions-container').innerHTML = '';
 
-            // System Prompt (Same stricter version)
-            const systemPrompt = `You are an expert AI assistant generating educational MCQs. Generate exactly ${numQuestions} questions based on the user's prompt. **ULTRA-CRITICAL INSTRUCTION:** YOU MUST output ONLY a single, valid JSON array string. ABSOLUTELY NO other text, introductions, explanations, comments, apologies, or markdown formatting (like \`\`\`) should be present in your response. YOUR RESPONSE MUST START *EXACTLY* WITH '[' AND END *EXACTLY* WITH ']'. Respond ONLY in English. Even if the request is complex or long, maintain this strict JSON format throughout the entire response. Each object in the array MUST follow this exact format: { "question": "Question text (Use valid MathJax LaTeX: $inline$ or $$display$$).", "options": ["Option A (LaTeX ok)", "Option B", "Option C", "Option D"], "correctAnswerIndex": N (0-based index), "explanation": "Explanation (LaTeX ok). If PYQ, state source." } Example of a perfect response for numQuestions=1: [{"question":"Calculate $e^{i\\pi}$","options":["1","-1","i","-i"],"correctAnswerIndex":1,"explanation":"Euler's identity states $e^{i\\theta} = \\cos{\\theta} + i\\sin{\\theta}$. So, $e^{i\\pi} = \\cos{\\pi} + i\\sin{\\pi} = -1 + 0i = -1$."}] Adhere strictly to generating only the JSON array string. Do not add ANY extra characters or text. Provide real PYQs if requested and possible, otherwise generate relevant questions. Verify accuracy.`;
-            const userQuery = `Generate ${numQuestions} MCQs based on: "${prompt}". Follow ALL formatting instructions precisely.`;
+            // Generate questions
+            const questions = await generateQuestions(questionType, numQuestions, modelName);
+            document.getElementById('loading').style.display = 'none';
+            displayQuestions(questions);
+        });
 
-            // ** Removed max_tokens calculation and parameter **
-            console.log("Sending request without explicit max_tokens (using API default max output).");
+        // Back button
+        document.getElementById('back-btn').addEventListener('click', function() {
+            showSection('customize');
+        });
 
-            const requestBody = {
+        // Generate questions using OpenRouter API
+        async function generateQuestions(questionType, numQuestions, modelName) {
+            const url = 'https://openrouter.ai/api/v1/chat/completions';
+            const prompt = `
+                Generate ${numQuestions} multiple-choice questions (MCQs) based on: "${questionType}". 
+                Each question must have:
+                - A question stem.
+                - Exactly 4 options labeled A, B, C, D.
+                - The correct answer.
+                Format each question as a JSON object in an array. Use LaTeX (e.g., $...$ or $$...$$) for mathematical equations where applicable. 
+                If PYQs are requested (e.g., JEE Mains, BITSAT), ensure questions are based on real previous year questions or closely mimic them. 
+                Do not generate random unrelated questions.
+            `;
+
+            const payload = {
                 model: modelName,
-                messages: [ { role: "system", content: systemPrompt }, { role: "user", content: userQuery } ],
-                // max_tokens: max_tokens, // REMOVED
-                temperature: 0.5,
-                stream: false
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 2000, // Adjust as needed
+                temperature: 0.7
+            };
+            const headers = {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': window.location.href, // Required by OpenRouter
+                'X-Title': 'PYQ Bot' // Optional for OpenRouter
             };
 
-            // --- Execute API Call with Retries and Timeout ---
-            let lastError = null;
-            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-                let responseData = null; // Define here to be accessible in catch
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const data = await response.json();
+                
+                // Parse the response (assuming it’s in JSON format within the content)
+                const content = data.choices[0].message.content;
+                const questions = JSON.parse(content); // Expecting an array of question objects
+                return questions.map(q => ({
+                    question: q.question,
+                    options: [q.A, q.B, q.C, q.D], // Adjust based on your expected format
+                    answer: q.answer
+                }));
+            } catch (error) {
+                console.error('Error:', error);
+                return [{ question: `Error: ${error.message}`, options: [], answer: '' }];
+            }
+        }
 
-                try {
-                    if (attempt > 0) { console.log(`Retrying API call (Attempt ${attempt}/${MAX_RETRIES})...`); await delay(RETRY_DELAY_MS); }
+        // Display questions in solver section
+        function displayQuestions(questions) {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            questions.forEach((q, index) => {
+                const div = document.createElement('div');
+                div.className = 'question';
+                div.innerHTML = `
+                    <p>${index + 1}. ${q.question}</p>
+                    <ul>
+                        ${q.options.map((opt, i) => `<li>${String.fromCharCode(65 + i)}. ${opt}</li>`).join('')}
+                    </ul>
+                    <p><strong>Answer:</strong> ${q.answer}</p>
+                `;
+                container.appendChild(div);
+            });
 
-                    console.log(`Sending request (Attempt ${attempt}) to ${providerName}: ${apiUrl}`);
-                    const response = await fetch(apiUrl, { method: 'POST', headers: headers, body: JSON.stringify(requestBody), signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    console.log(`${providerName} Response status (Attempt ${attempt}):`, response.status, response.statusText);
-
-                    let responseBodyText = '';
-                    try {
-                        const clonedResponse1 = response.clone(); const clonedResponse2 = response.clone();
-                        responseData = await clonedResponse1.json(); // Store response data
-                        console.log("--- Full API Response Data ---"); console.log(JSON.stringify(responseData, null, 2)); console.log("--- End Full API Response Data ---");
-                    } catch (jsonError) {
-                         console.error(`Could not parse API response as JSON (Attempt ${attempt}):`, jsonError);
-                         try { responseBodyText = await response.text(); console.error("--- Raw Response Body (Non-JSON) ---"); console.error(responseBodyText); console.error("--- End Raw Response Body ---"); }
-                         catch (textError) { console.error("Could not read response body as text either:", textError); }
-                         if (response.status >= 500 && attempt < MAX_RETRIES) { console.warn(`Received server error status ${response.status} with non-JSON body. Retrying...`); lastError = new Error(`${providerName} API Error: ${response.status} ${response.statusText}. Response body was not valid JSON.`); continue; }
-                         throw new Error(`${providerName} Error: Response body was not valid JSON (Status: ${response.status}). Check console for raw body.`);
-                    }
-
-                    // Check for top-level error object
-                    if (responseData && responseData.error) {
-                        console.error("API returned an error object in the response body:", responseData.error);
-                        const errorMessage = `${providerName} API Error (from response body): ${responseData.error.message || 'Unknown error structure'}`;
-                        if (responseData.error.message?.includes("Internal Server Error") && attempt < MAX_RETRIES) { console.warn(`Received API-reported Internal Server Error. Retrying...`); lastError = new Error(errorMessage); continue; }
-                        throw new Error(errorMessage);
-                    }
-
-                    // Check response status if no error object
-                    if (!response.ok) {
-                        if (response.status >= 500 && attempt < MAX_RETRIES) { console.warn(`Received server error status ${response.status}. Retrying...`); lastError = new Error(`${providerName} API Error: ${response.status} ${response.statusText}`); continue; }
-                        let errorDetails = `${providerName} API Error (${response.status}): ${response.statusText || 'Unknown error'}`;
-                        if (response.status === 401) errorDetails += " (Invalid API Key?)";
-                        if (response.status === 429) errorDetails += " (Rate Limit Exceeded?)";
-                        if (response.status === 400) errorDetails += " (Bad Request - Check Model/Params?)";
-                        throw new Error(errorDetails);
-                    }
-
-                    // Process successful response structure
-                    const finishReason = responseData.choices?.[0]?.finish_reason;
-                    if (finishReason === 'length') { console.warn("Warning: API response finish_reason was 'length'. Output might be truncated by the model's maximum output limit."); /* Allow processing */ }
-                    if (!responseData.choices || responseData.choices.length === 0) { throw new Error(`Invalid response structure from ${providerName}: 'choices' array is missing or empty. Check console for full API response.`); }
-                    if (!responseData.choices[0].message) { throw new Error(`Invalid response structure from ${providerName}: 'choices[0].message' is missing. Check console for full API response.`); }
-
-                    const aiContent = responseData.choices[0].message.content;
-
-                    // Parse and validate
-                    return parseAndValidateApiResponse(aiContent, numQuestions, responseData); // Success!
-
-                } catch (error) {
-                    clearTimeout(timeoutId);
-                    lastError = error; // Store the actual error object
-                    console.error(`Error during fetch attempt ${attempt} for ${apiUrl}:`, error); // Log the actual error object
-
-                    // Check if retryable
-                    let shouldRetry = false;
-                    if (attempt < MAX_RETRIES) {
-                        const errorMessage = error.message || ''; // Use message if available
-                        // Check specific conditions for retry
-                        if (error.name === 'AbortError' || errorMessage.includes("API Error: 5") || errorMessage.includes("Internal Server Error") || (error instanceof TypeError && errorMessage.includes('fetch'))) {
-                            console.warn(`Potential transient error detected (${error.name || 'Error'}: ${errorMessage}). Retrying...`);
-                            shouldRetry = true;
-                        }
-                    }
-
-                    if (shouldRetry) { continue; }
-                    else { console.warn("Error deemed non-retryable or max retries reached."); break; }
-                }
-            } // End retry loop
-
-            // Handle final error after retries
-            console.error(`Failed API call after ${MAX_RETRIES + 1} attempts. Last error:`, lastError); // Log the actual lastError object
-            // Construct final user-facing message using lastError properties if they exist
-            const finalErrorMessage = (lastError instanceof Error && lastError.message) ? lastError.message : 'An unexpected error occurred. Check console.';
-            let userDisplayMessage = `Failed to get questions: ${finalErrorMessage}.`;
-
-            // Add specific suggestions based on the *last* error encountered
-            if (lastError instanceof TypeError && finalErrorMessage.includes('fetch')) { userDisplayMessage = `Failed to get questions: Network Error (${finalErrorMessage}). Check internet, firewall/proxy, CORS (if running locally), and API URL. Check console (F12).`; }
-            else if (finalErrorMessage.includes("empty content")) { userDisplayMessage += " Suggestions:\n1. Verify Model Name & API Key.\n2. Check API account status/limits.\n3. Check for content filtering.\n4. Check console (F12) for 'Full API Response Data'."; }
-            else if (finalErrorMessage.includes("truncated") || finalErrorMessage.includes("start and end with") || finalErrorMessage.includes("missing")) { userDisplayMessage += " Often happens with complex requests. Suggestions: \n1. Request fewer questions.\n2. Try a different/better AI model.\n3. Simplify prompt.\n4. Check console (F12) for details."; }
-            else if (finalErrorMessage.includes("API Error (from response body): Internal Server Error")) { userDisplayMessage += " The API provider reported an Internal Server Error. Try again later, use a different model, or simplify the prompt."; }
-            else if (finalErrorMessage.includes("API Error (from response body)")) { userDisplayMessage += " API reported an error (check console). Verify Model Name, API Key, account status."; }
-            else if (finalErrorMessage.includes("timed out")) { userDisplayMessage += " Request timed out. Try fewer questions or check API provider status."; }
-            else if (finalErrorMessage.includes("API Error: 5")) { userDisplayMessage += " API provider server error (5xx). Try again later or check provider status."; }
-            else if (finalErrorMessage.includes("API Error: 4")) { userDisplayMessage += " Request error (4xx). Check API Key, Model Name, parameters, and account status. See console."; }
-            else if (finalErrorMessage.includes("not valid JSON")) { userDisplayMessage += " API response was not readable JSON. Check console for raw response body." ;}
-            // Handle the case where lastError might be {} or lack a message
-            else if (!lastError?.message) { userDisplayMessage = `Failed to get questions due to an unexpected issue (Error details: ${JSON.stringify(lastError)}). Check console (F12), network, CORS, API Key, and Model Name.`; }
-            else { userDisplayMessage += " Please check console (F12) for technical details. Verify settings and network."; }
-
-            displayError(customizationError, userDisplayMessage);
-            return null; // Indicate failure
-
-        } // End fetchQuestions
-
-
-        // --- Quiz Logic Functions (typesetMathJax, displayQuestion, selectAnswer, showExplanation, highlightAnswer, disableOptions, enableOptions, startNewQuiz, showResults - Same as before) ---
-        async function typesetMathJax(elements) { if (window.MathJax && window.MathJax.typesetPromise) { try { return await window.MathJax.typesetPromise(elements); } catch(mathJaxError) { console.error("MathJax typesetting error:", mathJaxError); } } else { console.warn("MathJax not ready."); } }
-        async function displayQuestion(index) { if (index < 0 || index >= currentQuestions.length) return; const questionData = currentQuestions[index]; questionTextElement.textContent = questionData.question; optionsContainer.innerHTML = ''; feedbackTextElement.textContent = ''; feedbackTextElement.className = 'text-center font-semibold text-xl'; explanationArea.classList.add('hidden-element'); explanationTextElement.textContent = ''; questionData.options.forEach((option, i) => { const button = document.createElement('button'); button.textContent = option; button.classList.add('option-button', 'w-full', 'text-left', 'p-3', 'border', 'border-gray-300', 'rounded-md', 'shadow-sm', 'bg-white', 'hover:bg-gray-100', 'focus:outline-none', 'focus:ring-2', 'focus:ring-offset-1', 'focus:ring-indigo-400', 'transition', 'duration-150'); button.dataset.index = i; button.onclick = () => selectAnswer(index, i); optionsContainer.appendChild(button); }); const currentQuestionNum = index + 1; const totalQuestions = currentQuestions.length; progressTextElement.textContent = `Question ${currentQuestionNum} / ${totalQuestions}`; progressBarElement.style.width = `${(currentQuestionNum / totalQuestions) * 100}%`; await typesetMathJax([questionTextElement, optionsContainer]); const answered = userAnswers.find(ans => ans.questionIndex === index); prevButton.disabled = index === 0; nextButton.classList.toggle('hidden-element', index === totalQuestions - 1); finishButton.classList.toggle('hidden-element', index !== totalQuestions - 1); nextButton.disabled = !answered; finishButton.disabled = !answered; if (answered) { highlightAnswer(answered.selectedOptionIndex, answered.isCorrect, index); disableOptions(); await showExplanation(questionData); } else { enableOptions(); feedbackTextElement.textContent = ''; explanationArea.classList.add('hidden-element'); } }
-        function selectAnswer(questionIndex, selectedOptionIndex) { if (userAnswers.some(ans => ans.questionIndex === questionIndex)) return; const questionData = currentQuestions[questionIndex]; const isCorrect = selectedOptionIndex === questionData.correctAnswerIndex; userAnswers.push({ questionIndex, selectedOptionIndex, isCorrect }); if (isCorrect) score++; highlightAnswer(selectedOptionIndex, isCorrect, questionIndex); disableOptions(); feedbackTextElement.textContent = isCorrect ? 'Correct!' : 'Incorrect!'; feedbackTextElement.classList.add(isCorrect ? 'text-green-600' : 'text-red-600'); feedbackTextElement.classList.remove(!isCorrect ? 'text-green-600' : 'text-red-600'); showExplanation(questionData); if (currentQuestionIndex === currentQuestions.length - 1) finishButton.disabled = false; else nextButton.disabled = false; }
-        async function showExplanation(questionData) { if (questionData.explanation) { explanationTextElement.textContent = questionData.explanation; explanationArea.classList.remove('hidden-element'); await typesetMathJax([explanationTextElement]); } else { explanationArea.classList.add('hidden-element'); } }
-        function highlightAnswer(selectedIndex, isCorrect, questionIndex) { const buttons = optionsContainer.querySelectorAll('button'); const correctIndex = currentQuestions[questionIndex].correctIndex; buttons.forEach((button, i) => { button.classList.remove('selected-answer', 'correct-answer', 'incorrect-answer', 'hover:bg-gray-100', 'opacity-80'); if (i === selectedIndex) { button.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer'); } else if (i === correctIndex && !isCorrect) { button.classList.add('correct-answer', 'opacity-80'); } }); }
-        function disableOptions() { optionsContainer.querySelectorAll('button').forEach(button => { button.disabled = true; button.classList.add('opacity-75', 'cursor-not-allowed'); button.classList.remove('hover:bg-gray-100'); }); }
-        function enableOptions() { optionsContainer.querySelectorAll('button').forEach(button => { button.disabled = false; button.classList.remove('opacity-75', 'cursor-not-allowed', 'correct-answer', 'incorrect-answer', 'opacity-80'); button.classList.add('hover:bg-gray-100'); }); }
-        async function startNewQuiz(prompt, num) { hideError(customizationError); quizSettings = { model: modelName, prompt, numQuestions: num }; const questions = await fetchQuestions(prompt, num); if (questions && questions.length > 0) { currentQuestions = questions; currentQuestionIndex = 0; userAnswers = []; score = 0; showPage('quiz-page'); await displayQuestion(currentQuestionIndex); } else { console.error("Failed to start quiz because fetchQuestions returned null or empty."); loadingIndicator.classList.add('hidden-element'); startQuizButton.disabled = false; } }
-        function showResults() { finalScoreElement.textContent = `${score} / ${currentQuestions.length}`; showPage('results-page'); }
-
-        // --- Event Listeners ---
-        startQuizButton.addEventListener('click', () => { hideError(customizationError); const prompt = questionPromptInput.value.trim(); const num = parseInt(numQuestionsInput.value, 10); let isValid = true; if (!prompt) { displayError(customizationError, "Please enter a question prompt."); questionPromptInput.focus(); isValid = false; } if (isNaN(num) || num < 1 || num > 25) { displayError(customizationError, "Number of questions must be between 1 and 25."); numQuestionsInput.focus(); isValid = false; } if (isValid) startNewQuiz(prompt, num); });
-        backToSetupButton.addEventListener('click', () => { showPage('setup-page'); hideError(setupError); hideError(customizationError); });
-        prevButton.addEventListener('click', () => { if (currentQuestionIndex > 0) displayQuestion(--currentQuestionIndex); });
-        nextButton.addEventListener('click', () => { if (currentQuestionIndex < currentQuestions.length - 1) displayQuestion(++currentQuestionIndex); });
-        finishButton.addEventListener('click', () => { if (currentQuestionIndex === currentQuestions.length - 1) showResults(); });
-        exitQuizButton.addEventListener('click', () => { if (confirm("Exit quiz? Progress lost.")) { showPage('customization-page'); currentQuestions = []; userAnswers = []; score = 0; hideError(customizationError); } });
-        restartQuizButton.addEventListener('click', () => { if (quizSettings.prompt && quizSettings.numQuestions > 0) { modelName = quizSettings.model; openRouterModelInput.value = modelName; questionPromptInput.value = quizSettings.prompt; numQuestionsInput.value = quizSettings.numQuestions; showPage('customization-page'); setTimeout(() => startNewQuiz(quizSettings.prompt, quizSettings.numQuestions), 50); } else { console.error("Cannot restart, previous settings missing."); showPage('customization-page'); } });
-        newQuizButton.addEventListener('click', () => { showPage('customization-page'); hideError(customizationError); });
-
-        // --- Initial Setup ---
-        // Removed updateSetupUI call
-        showPage('setup-page'); // Start on the setup page
-
+            // Render LaTeX
+            renderMathInElement(container, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false }
+                ]
+            });
+        }
     </script>
-
 </body>
 </html>
