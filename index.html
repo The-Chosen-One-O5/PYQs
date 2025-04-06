@@ -164,9 +164,9 @@
                 Generate exactly ${numQuestions} multiple-choice questions (MCQs) based on: "${questionType}". 
                 Each question must have:
                 - A question stem.
-                - Exactly 4 options labeled A, B, C, D.
+                - Exactly 4 options labeled A, B, C, D within an "options" object.
                 - The correct answer.
-                Format the response as a valid JSON array of objects, where each object has "question", "options" (with A, B, C, D), and "answer" fields. 
+                Format the response as a valid JSON array of objects, where each object has "question", "options" (with A, B, C, D as properties), and "answer" fields. 
                 Use LaTeX (e.g., $...$ or $$...$$) for mathematical equations where applicable. 
                 If PYQs are requested (e.g., JEE Mains, BITSAT), ensure questions are based on real previous year questions or closely mimic them. 
                 Do not generate random unrelated questions. Ensure the JSON is complete and properly closed.
@@ -175,8 +175,8 @@
             const payload = {
                 model: modelName,
                 messages: [{ role: 'user', content: prompt }],
-                max_tokens: 4000, // Increased to handle larger responses
                 temperature: 0.7
+                // max_tokens omitted to use model's maximum
             };
             const headers = {
                 'Authorization': `Bearer ${apiKey}`,
@@ -211,16 +211,7 @@
 
                 let questions;
                 try {
-                    // Clean up the content to handle incomplete JSON
-                    let cleanedContent = content.trim();
-                    if (!cleanedContent.endsWith(']')) {
-                        // Attempt to close the JSON if truncated
-                        const lastBracket = cleanedContent.lastIndexOf('}');
-                        if (lastBracket !== -1) {
-                            cleanedContent = cleanedContent.substring(0, lastBracket + 1) + ']';
-                        }
-                    }
-                    questions = JSON.parse(cleanedContent);
+                    questions = JSON.parse(content);
                 } catch (parseError) {
                     throw new Error(`Failed to parse JSON: ${content}`);
                 }
