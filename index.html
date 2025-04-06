@@ -183,8 +183,8 @@
         const OPENROUTER_REFERER_URL = window.location.origin || 'http://localhost';
         const OPENROUTER_APP_NAME = 'AI-PYQ-Bot';
         const MAX_RETRIES = 1;
-        const RETRY_DELAY_MS = 1000; // Reduced from 2000ms
-        const REQUEST_TIMEOUT_MS = 30000; // Reduced from 90000ms
+        const RETRY_DELAY_MS = 2000;
+        const REQUEST_TIMEOUT_MS = 90000;
 
         // --- Helper Functions ---
         function showPage(pageId) {
@@ -314,24 +314,19 @@
         });
 
         // --- API and Question Generation ---
-        async function generateQuestions(questionType, numQuestions, modelName) {
+        async function generateSingleQuestion(questionType, modelName, attemptNum, totalRequested) {
             const url = baseUrl.replace(/\/$/, '') + '/chat/completions';
-            const questions = [];
-
-            loadingText.textContent = `Generating ${numQuestions} questions...`;
-            loadingIndicator.classList.remove('hidden-element');
-
             const prompt = `
-                Generate ${numQuestions} multiple-choice questions (MCQs) based on: "${questionType}". 
-                Each question must have:
+                Generate a single multiple-choice question (MCQ) based on: "${questionType}". 
+                The question must have:
                 - A question stem (e.g., similar to JEE Main 2025 PYQs like 'The position of a particle moving on x-axis is given by x(t) = A sin t + B cos^2 t + C t^2 + D, where t is time. The dimension of ABC/D is').
                 - Exactly 4 options labeled A, B, C, D within an "options" object.
                 - The correct answer as "correctAnswerIndex" (0-based index).
                 - An explanation.
-                Return the response as a valid JSON array of objects, where each object has "question", "options" (with A, B, C, D as properties), "correctAnswerIndex", and "explanation" fields. 
+                Format the response as a valid JSON object with "question", "options" (with A, B, C, D as properties), "correctAnswerIndex", and "explanation" fields. 
                 Use LaTeX (e.g., $...$ or $$...$$) for mathematical equations where applicable. 
-                If PYQs are requested (e.g., JEE Main 2025), ensure questions are based on real previous year questions or closely mimic them. 
-                Ensure the JSON is complete and properly closed.
+                If PYQs are requested (e.g., JEE Main 2025), ensure the question is based on real previous year questions or closely mimics them. 
+                Do not generate random unrelated questions. Ensure the JSON is complete and properly closed.
             `;
 
             const payload = {
@@ -357,7 +352,7 @@
 
                 try {
                     if (attempt > 0) {
-                        console.log(`Retrying request (Attempt ${attempt}/${MAX_RETRIES})...`);
+                        console.log(`Retrying question ${attemptNum} (Attempt ${attempt}/${MAX_RETRIES})...`);
                         await delay(RETRY_DELAY_MS);
                     }
 
@@ -371,77 +366,94 @@
 
                     if (!response.ok) {
                         const errorText = await response.text();
-                        throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
+                        throw new Error(`HTTP error for question ${attemptNum}! Status: ${response.status}, Details: ${errorText}`);
                     }
 
                     const data = await response.json();
-                    console.log(`API Response:`, data);
+                    console.log(`API Response for question ${attemptNum}:`, data);
 
                     if (!data.choices || !data.choices.length || !data.choices[0].message || !data.choices[0].message.content) {
-                        throw new Error(`Invalid response format`);
+                        throw new Error(`Invalid response format for question ${attemptNum}`);
                     }
 
                     let content = data.choices[0].message.content.trim();
-                    let questionArray;
+                    let question;
 
-                    // Extract valid JSON array if wrapped in backticks or mixed with text
-                    const jsonMatch = content.match(/\[[\s\S]*\]/);
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         content = jsonMatch[0];
                     }
 
                     try {
-                        questionArray = JSON.parse(content);
+                        question = JSON.parse(content);
                     } catch (parseError) {
-                        console.error(`Raw content:`, content);
-                        throw new Error(`Failed to parse JSON: ${parseError.message}`);
+                        console.error(`Raw content for question ${attemptNum}:`, content);
+                        throw new Error(`Failed to parse JSON for question ${attemptNum}: ${parseError.message}`);
                     }
 
-                    // Validate and collect valid questions, even if incomplete
-                    if (!Array.isArray(questionArray)) {
-                        throw new Error(`Response is not an array: ${JSON.stringify(questionArray)}`);
+                    if (!question.question || 
+                        !question.options || 
+                        !['A', 'B', 'C', 'D'].every(key => key in question.options) || 
+                        typeof question.correctAnswerIndex !== 'number' || 
+                        question.correctAnswerIndex < 0 || question.correctAnswerIndex > 3 || 
+                        !question.explanation) {
+                        throw new Error(`Invalid question structure for question ${attemptNum}: ${JSON.stringify(question)}`);
                     }
 
-                    questionArray.forEach((question, index) => {
-                        if (question && 
-                            question.question && 
-                            question.options && 
-                            ['A', 'B', 'C', 'D'].every(key => key in question.options) && 
-                            typeof question.correctAnswerIndex === 'number' && 
-                            question.correctAnswerIndex >= 0 && question.correctAnswerIndex <= 3 && 
-                            question.explanation) {
-                            questions.push({
-                                question: question.question,
-                                options: [question.options.A, question.options.B, question.options.C, question.options.D].filter(opt => opt),
-                                correctAnswerIndex: question.correctAnswerIndex,
-                                explanation: question.explanation
-                            });
-                        } else {
-                            console.warn(`Skipping invalid question ${index + 1}:`, question);
-                        }
-                    });
-
-                    if (questions.length > 0) {
-                        console.log(`Generated ${questions.length} valid questions out of ${numQuestions} requested`);
-                        break; // Exit retry loop if we have at least some valid questions
-                    } else {
-                        throw new Error(`No valid questions generated`);
-                    }
+                    return {
+                        question: question.question,
+                        options: [question.options.A, question.options.B, question.options.C, question.options.D].filter(opt => opt),
+                        correctAnswerIndex: question.correctAnswerIndex,
+                        explanation: question.explanation
+                    };
                 } catch (error) {
                     lastError = error;
-                    console.error(`Error (Attempt ${attempt}):`, error);
+                    console.error(`Error for question ${attemptNum} (Attempt ${attempt}):`, error);
                     if (attempt === MAX_RETRIES) {
-                        if (questions.length > 0) {
-                            console.log(`Using ${questions.length} partial questions after retries`);
-                            break; // Use whatever we have if retries are exhausted
-                        } else {
-                            displayError(customizationError, `Failed to generate questions after retries: ${error.message}`);
-                        }
+                        console.warn(`Skipping question ${attemptNum} after retries due to: ${error.message}`);
+                        return null; // Return null to indicate failure
+                    }
+                }
+            }
+            return null; // Fallback, should not reach here
+        }
+
+        async function generateQuestions(questionType, numQuestions, modelName) {
+            const questions = [];
+            let failedCount = 0;
+
+            // Initial generation loop
+            for (let i = 0; i < numQuestions; i++) {
+                loadingText.textContent = `Generating question ${i + 1} of ${numQuestions}...`;
+                loadingIndicator.classList.remove('hidden-element');
+
+                const question = await generateSingleQuestion(questionType, modelName, i + 1, numQuestions);
+                if (question) {
+                    questions.push(question);
+                } else {
+                    failedCount++;
+                }
+            }
+
+            // Generate additional questions to make up for failures
+            const remaining = numQuestions - questions.length;
+            if (remaining > 0) {
+                loadingText.textContent = `Generating ${remaining} additional question${remaining > 1 ? 's' : ''} to reach ${numQuestions}...`;
+                for (let i = 0; i < remaining; i++) {
+                    const extraQuestion = await generateSingleQuestion(questionType, modelName, numQuestions + i + 1, numQuestions);
+                    if (extraQuestion) {
+                        questions.push(extraQuestion);
+                    } else {
+                        failedCount++;
+                        console.warn(`Failed to generate additional question ${i + 1} of ${remaining}`);
                     }
                 }
             }
 
             loadingIndicator.classList.add('hidden-element');
+            if (questions.length < numQuestions) {
+                displayError(customizationError, `Generated only ${questions.length} of ${numQuestions} questions due to ${failedCount} failures. Check console for details.`);
+            }
             return questions.length > 0 ? questions : [];
         }
 
@@ -459,9 +471,6 @@
                 score = 0;
                 showPage('quiz-page');
                 await displayQuestion(currentQuestionIndex);
-                if (questions.length < num) {
-                    displayError(customizationError, `Only generated ${questions.length} out of ${num} requested questions`);
-                }
             } else {
                 displayError(customizationError, "Failed to generate any questions. Check your prompt, model, or API key.");
             }
