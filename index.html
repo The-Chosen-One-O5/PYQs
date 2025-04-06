@@ -135,25 +135,35 @@
                 questionsDisplayArea.innerHTML = '<p class="text-gray-500 italic">Loading questions...</p>';
 
                 try {
-                    const response = await fetch(`${baseUrl}`, {
+                    const response = await fetch(baseUrl, { //  Use the baseUrl
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${apiKey}`,
                         },
                         body: JSON.stringify({
-                            model: modelName,
+                            model: modelName, // Use the model name
                             prompt: questionPrompt,
                             max_tokens: 1500,
                         }),
                     });
 
                     if (!response.ok) {
-                        throw new Error(`OpenRouter API error: ${response.statusText}`);
+                        // Attempt to get the error message from the response
+                        let errorMessage = `OpenRouter API error: ${response.status} - ${response.statusText}`;
+                        try {
+                            const errorData = await response.json();
+                            if (errorData && errorData.error && errorData.error.message) {
+                                errorMessage += ` (${errorData.error.message})`;
+                            }
+                        } catch (jsonError) {
+                            // If we can't parse JSON, just use the basic error
+                        }
+                        throw new Error(errorMessage);
                     }
 
                     const data = await response.json();
-                    displayQuestions(data);
+                    displayQuestions(data); //  Call a function to display
                 } catch (error) {
                     console.error('Error fetching questions:', error);
                     questionsDisplayArea.innerHTML = `<p class="text-red-500">Failed to fetch questions: ${error.message}</p>`;
