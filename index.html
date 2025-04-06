@@ -66,6 +66,10 @@
             text-align: center;
             display: none;
         }
+        .error {
+            color: red;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -91,18 +95,19 @@
                 <label for="num-questions">Number of Questions (Max 25):</label>
                 <input type="number" id="num-questions" min="1" max="25" required>
                 
-                <label for="model-name">Model Name:</label>
+                <label for="model-name">OpenRouter Model Name:</label>
                 <input type="text" id="model-name" placeholder="e.g., xai/grok" required>
+                <p><small>Full model name required (e.g., "xai/grok"). See <a href="https://openrouter.ai/models" target="_blank">models list</a>.</small></p>
                 
                 <button type="submit">Start</button>
             </form>
-            <p><small>Available models: <a href="https://openrouter.ai/models" target="_blank">OpenRouter Models</a></small></p>
         </div>
 
         <!-- Solver Section -->
         <div id="solver" class="section">
             <h1>Your Custom Questions</h1>
             <div id="loading">Loading questions...</div>
+            <div id="error" class="error"></div>
             <div id="questions-container"></div>
             <button id="back-btn">Back to Customize</button>
         </div>
@@ -117,28 +122,31 @@
                 section.classList.remove('active');
             });
             document.getElementById(sectionId).classList.add('active');
+            document.getElementById('error').innerHTML = '';
         }
 
         // Handle API form submission
         document.getElementById('api-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            apiKey = document.getElementById('api-key').value;
+            apiKey = document.getElementById('api-key').value.trim();
             showSection('customize');
         });
 
         // Handle customization form submission
         document.getElementById('customize-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const questionType = document.getElementById('question-type').value;
+            const questionType = document.getElementById('question-type').value.trim();
             const numQuestions = parseInt(document.getElementById('num-questions').value);
-            const modelName = document.getElementById('model-name').value;
+            let modelName = document.getElementById('model-name').value.trim();
 
-            // Show loading message
+            if (!modelName.includes('/')) {
+                modelName = `openrouter/${modelName}`;
+            }
+
             showSection('solver');
             document.getElementById('loading').style.display = 'block';
             document.getElementById('questions-container').innerHTML = '';
 
-            // Generate questions
             const questions = await generateQuestions(questionType, numQuestions, modelName);
             document.getElementById('loading').style.display = 'none';
             displayQuestions(questions);
@@ -153,20 +161,21 @@
         async function generateQuestions(questionType, numQuestions, modelName) {
             const url = 'https://openrouter.ai/api/v1/chat/completions';
             const prompt = `
-                Generate ${numQuestions} multiple-choice questions (MCQs) based on: "${questionType}". 
+                Generate exactly ${numQuestions} multiple-choice questions (MCQs) based on: "${questionType}". 
                 Each question must have:
                 - A question stem.
                 - Exactly 4 options labeled A, B, C, D.
                 - The correct answer.
-                Format each question as a JSON object in an array. Use LaTeX (e.g., $...$ or $$...$$) for mathematical equations where applicable. 
+                Format the response as a valid JSON array of objects, where each object has "question", "options" (with A, B, C, D), and "answer" fields. 
+                Use LaTeX (e.g., $...$ or $$...$$) for mathematical equations where applicable. 
                 If PYQs are requested (e.g., JEE Mains, BITSAT), ensure questions are based on real previous year questions or closely mimic them. 
-                Do not generate random unrelated questions.
+                Do not generate random unrelated questions. Ensure the JSON is complete and properly closed.
             `;
 
             const payload = {
                 model: modelName,
                 messages: [{ role: 'user', content: prompt }],
-                max_tokens: 2000,
+                max_tokens: 4000, // Increased to handle larger responses
                 temperature: 0.7
             };
             const headers = {
@@ -189,9 +198,8 @@
                 }
 
                 const data = await response.json();
-                console.log('API Response:', data); // Log the full response for debugging
+                console.log('API Response:', data);
 
-                // Check if choices exists and has at least one item
                 if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
                     throw new Error('Invalid response format: No choices found');
                 }
@@ -201,27 +209,35 @@
                     throw new Error('No content in response');
                 }
 
-                // Parse the JSON content
                 let questions;
                 try {
-                    questions = JSON.parse(content);
+                    // Clean up the content to handle incomplete JSON
+                    let cleanedContent = content.trim();
+                    if (!cleanedContent.endsWith(']')) {
+                        // Attempt to close the JSON if truncated
+                        const lastBracket = cleanedContent.lastIndexOf('}');
+                        if (lastBracket !== -1) {
+                            cleanedContent = cleanedContent.substring(0, lastBracket + 1) + ']';
+                        }
+                    }
+                    questions = JSON.parse(cleanedContent);
                 } catch (parseError) {
                     throw new Error(`Failed to parse JSON: ${content}`);
                 }
 
-                // Validate and transform the questions
                 if (!Array.isArray(questions)) {
                     throw new Error('Response is not an array of questions');
                 }
 
                 return questions.map(q => ({
                     question: q.question || 'Missing question',
-                    options: [q.A, q.B, q.C, q.D].filter(opt => opt !== undefined), // Ensure all options exist
+                    options: q.options ? [q.options.A, q.options.B, q.options.C, q.options.D].filter(opt => opt !== undefined) : [],
                     answer: q.answer || 'No answer provided'
                 }));
             } catch (error) {
                 console.error('Error:', error);
-                return [{ question: `Error: ${error.message}`, options: [], answer: '' }];
+                document.getElementById('error').innerHTML = `Error: ${error.message}`;
+                return [];
             }
         }
 
@@ -229,6 +245,10 @@
         function displayQuestions(questions) {
             const container = document.getElementById('questions-container');
             container.innerHTML = '';
+            if (questions.length === 0) {
+                container.innerHTML = '<p>No questions generated. Check the error above or try again.</p>';
+                return;
+            }
             questions.forEach((q, index) => {
                 const div = document.createElement('div');
                 div.className = 'question';
@@ -242,7 +262,6 @@
                 container.appendChild(div);
             });
 
-            // Render LaTeX
             renderMathInElement(container, {
                 delimiters: [
                     { left: "$$", right: "$$", display: true },
