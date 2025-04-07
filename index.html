@@ -3,205 +3,646 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PYQs Bot</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>AI PYQs Bot (OpenRouter)</title>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            svg: {
+                fontCache: 'global',
+                scale: 1.1,
+                linebreaks: { automatic: true, width: '90%container' }
+            },
+            options: {
+                renderActions: {
+                    addMenu: [],
+                    checkLoading: []
+                }
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/auto-render.min.js"></script>
+
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #1f2937; color: #e5e7eb; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        .hidden-element { display: none; }
+        .option-button { transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease; }
+        .option-button:not(:disabled):hover { background-color: #374151; border-color: #6b7280; }
+        .option-button:not(:disabled):active { transform: scale(0.98); }
+        .correct-answer { background-color: #10b981 !important; color: white !important; border-color: #059669 !important; }
+        .incorrect-answer { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        mjx-container { overflow-x: auto; overflow-y: hidden; display: block; margin: 0.5rem 0; background: #374151; border-radius: 4px; }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #8b5cf6; animation: spin 1s ease infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #question-text, #explanation-text, .option-button { word-wrap: break-word; overflow-wrap: break-word; }
     </style>
 </head>
-<body class="bg-gradient-to-r from-blue-100 to-purple-100 min-h-screen flex flex-col">
-    <div id="config-page" class="flex-grow justify-center items-center p-4" style="display: flex;">
-        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md transition-transform hover:scale-105">
-            <h1 class="text-2xl font-semibold text-blue-600 mb-6 text-center">PYQs Bot Configuration</h1>
-            <div class="mb-4">
-                <label for="apiKeyInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter API Key:</label>
-                <input type="text" id="apiKeyInput" placeholder="Enter your OpenRouter API Key" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-            </div>
-            <div class="mb-4">
-                <label for="baseUrlInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter Base URL:</label>
-                <input type="text" id="baseUrlInput" placeholder="Enter OpenRouter Base URL (e.g., https://openrouter.ai/api/v1)" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-            </div>
-             <div class="mb-4">
-                <label for="modelNameInput" class="block text-gray-700 text-sm font-bold mb-2">OpenRouter Model Name:</label>
-                <input type="text" id="modelNameInput" placeholder="Enter OpenRouter Model Name (e.g., openai/gpt-3.5-turbo)" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-            </div>
-            <button id="saveConfigButton" class="bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition duration-300 ease-in-out">
-                Save Configuration & Proceed
-            </button>
-            <p id="config-error-message" class="text-red-500 text-xs italic mt-4 text-center"></p>
-        </div>
-    </div>
+<body class="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-800 via-gray-900 to-black p-4">
+    <div class="container mx-auto max-w-2xl w-full bg-gray-800 rounded-xl shadow-2xl overflow-hidden">
 
-    <div id="questions-page" class="flex-grow justify-start items-center p-4" style="display: none;">
-        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl transition-transform hover:scale-105">
-            <h1 class="text-2xl font-semibold text-indigo-600 mb-4 text-center">Generate PYQs</h1>
-            <div class="mb-4">
-                <label for="questionPromptInput" class="block text-gray-700 text-sm font-bold mb-2">Describe your Question:</label>
-                <input type="text" id="questionPromptInput" placeholder="E.g., Most repeated questions of JEE mains" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-            </div>
-            <div class="mb-4">
-                <label for="numQuestionsInput" class="block text-gray-700 text-sm font-bold mb-2">Number of Questions (Max 25):</label>
-                <input type="number" id="numQuestionsInput" min="1" max="25" value="5" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-            </div>
-            <button id="startQuizButton" class="bg-gradient-to-r from-purple-400 to-pink-500 hover:from-purple-500 hover:to-pink-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition duration-300 ease-in-out mb-4">
-                Start Quiz
-            </button>
-            <p id="questions-error-message" class="text-red-500 text-xs italic mt-4 text-center"></p>
-            <div id="questionsDisplayArea" class="mt-4 p-4 bg-gray-50 rounded-md border border-gray-200">
+        <div id="setup-page" class="p-6 md:p-10 transition-all duration-500">
+            <h1 class="text-3xl font-bold mb-6 text-center text-gray-100">AI PYQs Bot Setup</h1>
+            <p class="text-center text-gray-400 mb-8">Enter your OpenRouter API details.</p>
+            <div class="space-y-5">
+                <div>
+                    <label for="apiKey" class="block text-sm font-medium text-gray-300 mb-1">OpenRouter API Key <span class="text-red-500">*</span></label>
+                    <input type="password" id="apiKey" name="apiKey" placeholder="Enter your OpenRouter API Key (sk-or-...)" class="w-full px-4 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
+                    <p class="mt-1 text-xs text-gray-500">Stored temporarily in browser session. <strong class="text-red-600">Handle with care.</strong></p>
                 </div>
+                <div>
+                    <label for="baseUrl" class="block text-sm font-medium text-gray-300 mb-1">Base URL (Optional)</label>
+                    <input type="url" id="baseUrl" name="baseUrl" placeholder="Default: https://openrouter.ai/api/v1" class="w-full px-4 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
+                    <p class="mt-1 text-xs text-gray-500">Leave blank for default or enter custom endpoint/proxy.</p>
+                </div>
+                <div>
+                    <label for="openRouterModel" class="block text-sm font-medium text-gray-300 mb-1">OpenRouter Model Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="openRouterModel" name="openRouterModel" placeholder="e.g., xai/grok" class="w-full px-4 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
+                    <p class="mt-1 text-xs text-gray-500">Specify the exact model to use via OpenRouter (see OpenRouter docs for available models).</p>
+                </div>
+                <div id="setup-error" class="text-red-400 text-sm hidden-element font-medium text-center p-2 bg-red-900 rounded-md border border-red-800"></div>
+                <button id="submit-setup" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Continue to Customization</button>
+            </div>
+        </div>
+
+        <div id="customization-page" class="hidden-element p-6 md:p-10 transition-all duration-500">
+            <h1 class="text-3xl font-bold mb-6 text-center text-gray-100">Customize Your Quiz</h1>
+            <p class="text-center text-gray-400 mb-8">Describe the questions you need. Be specific!</p>
+            <div class="space-y-5">
+                <div>
+                    <label for="questionPrompt" class="block text-sm font-medium text-gray-300 mb-1">Question Prompt <span class="text-red-500">*</span></label>
+                    <textarea id="questionPrompt" name="questionPrompt" rows="4" placeholder="E.g., '5 most repeated PYQs from JEE Mains Physics (Kinematics)', 'Easy difficulty Thermodynamics questions for NEET UG'" class="w-full px-4 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"></textarea>
+                    <p class="mt-1 text-xs text-gray-500">Mention exam, subject, topic, difficulty, PYQs if needed.</p>
+                </div>
+                <div>
+                    <label for="numQuestions" class="block text-sm font-medium text-gray-300 mb-1">NumberagramNumber of Questions (1-25) <span class="text-red-500">*</span></label>
+                    <input type="number" id="numQuestions" name="numQuestions" min="1" max="25" value="5" class="w-full px-4 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-gray-200 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out">
+                </div>
+                <div id="customization-error" class="text-red-400 text-sm hidden-element font-medium text-center p-2 bg-red-900 rounded-md border border-red-800"></div>
+                <button id="start-quiz" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Generate & Start Quiz</button>
+                <button id="view-history" class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">View History</button>
+                <button id="back-to-setup" class="w-full mt-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">Back to API Setup</button>
+            </div>
+            <div id="loading-indicator" class="hidden-element mt-6 text-center">
+                <p id="loading-text" class="text-indigo-400 font-semibold mb-3">Generating questions...</p>
+                <div class="spinner mx-auto"></div>
+                <p class="text-sm text-gray-500 mt-3">This may take a few moments, please wait.</p>
+            </div>
+        </div>
+
+        <div id="quiz-page" class="hidden-element p-6 md:p-10 transition-all duration-500">
+            <div class="flex justify-between items-center mb-5 border-b pb-3 border-gray-700">
+                <h2 class="text-2xl font-bold text-gray-100">Quiz Time!</h2>
+                <button id="exit-quiz" title="Exit Quiz" class="text-sm bg-red-900 hover:bg-red-800 text-red-200 font-semibold py-1 px-3 rounded-md shadow-sm transition duration-300 border border-red-700">Exit</button>
+            </div>
+            <div class="mb-6">
+                <div class="flex justify-between mb-1">
+                    <span class="text-sm font-medium text-indigo-400">Progress</span>
+                    <span id="progress-text" class="text-sm font-medium text-indigo-400">Question 1 / 5</span>
+                </div>
+                <div class="w-full bg-gray-700 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-500 ease-out" style="width: 20%"></div>
+                </div>
+            </div>
+            <div id="question-container" class="mb-6 p-5 border border-gray-700 rounded-lg bg-gray-900 min-h-[120px] shadow-sm">
+                <p id="question-text" class="text-lg text-gray-200 leading-relaxed">Loading question...</p>
+            </div>
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
+            <div id="feedback-container" class="min-h-[60px] mb-6">
+                <p id="feedback-text" class="text-center font-semibold text-xl"></p>
+                <div id="explanation-area" class="mt-3 p-4 bg-indigo-900 border border-indigo-800 rounded-lg text-sm text-gray-200 hidden-element shadow-sm">
+                    <strong class="text-indigo-300 block mb-1 text-base">Explanation:</strong>
+                    <div id="explanation-text" class="leading-relaxed"></div>
+                </div>
+            </div>
+            <div class="flex justify-between items-center pt-4 border-t border-gray-700">
+                <button id="prev-button" disabled class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-md shadow transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+                <button id="next-button" disabled class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md shadow transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+                <button id="finish-button" disabled class="hidden-element bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md shadow transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">Finish Quiz</button>
+            </div>
+        </div>
+
+        <div id="results-page" class="hidden-element p-8 md:p-12 rounded-lg text-center">
+            <svg class="w-16 h-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h2 class="text-3xl font-bold text-gray-100 mb-4">Quiz Completed!</h2>
+            <p class="text-xl text-gray-300 mb-8">Your Score: <span id="final-score" class="font-bold text-indigo-400 text-2xl">0 / 0</span></p>
+            <div class="space-y-3 md:space-y-0 md:space-x-4 flex flex-col md:flex-row justify-center">
+                <button id="save-history" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-6 rounded-md shadow transition duration-300">Save Scores in History</button>
+                <button id="restart-quiz" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-md shadow transition duration-300">Restart with Same Settings</button>
+                <button id="new-quiz" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-md shadow transition duration-300">Start New Quiz</button>
+            </div>
+        </div>
+
+        <div id="history-page" class="hidden-element p-8 md:p-12 rounded-lg text-center">
+            <h2 class="text-3xl font-bold text-gray-100 mb-6">Score History</h2>
+            <div id="history-list" class="space-y-4 text-gray-300"></div>
+            <button id="back-to-results" class="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-md shadow transition duration-300">Back to Results</button>
         </div>
     </div>
 
     <script>
-        // --- JavaScript ---
+        // --- DOM Elements ---
+        const setupPage = document.getElementById('setup-page');
+        const customizationPage = document.getElementById('customization-page');
+        const quizPage = document.getElementById('quiz-page');
+        const resultsPage = document.getElementById('results-page');
+        const historyPage = document.getElementById('history-page');
+        const apiKeyInput = document.getElementById('apiKey');
+        const baseUrlInput = document.getElementById('baseUrl');
+        const openRouterModelInput = document.getElementById('openRouterModel');
+        const submitSetupButton = document.getElementById('submit-setup');
+        const setupError = document.getElementById('setup-error');
+        const questionPromptInput = document.getElementById('questionPrompt');
+        const numQuestionsInput = document.getElementById('numQuestions');
+        const startQuizButton = document.getElementById('start-quiz');
+        const backToSetupButton = document.getElementById('back-to-setup');
+        const customizationError = document.getElementById('customization-error');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const loadingText = document.getElementById('loading-text');
+        const questionTextElement = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const feedbackTextElement = document.getElementById('feedback-text');
+        const explanationArea = document.getElementById('explanation-area');
+        const explanationTextElement = document.getElementById('explanation-text');
+        const prevButton = document.getElementById('prev-button');
+        const nextButton = document.getElementById('next-button');
+        const finishButton = document.getElementById('finish-button');
+        const exitQuizButton = document.getElementById('exit-quiz');
+        const progressTextElement = document.getElementById('progress-text');
+        const progressBarElement = document.getElementById('progress-bar');
+        const finalScoreElement = document.getElementById('final-score');
+        const saveHistoryButton = document.getElementById('save-history');
+        const viewHistoryButton = document.getElementById('view-history');
+        const restartQuizButton = document.getElementById('restart-quiz');
+        const newQuizButton = document.getElementById('new-quiz');
+        const historyList = document.getElementById('history-list');
+        const backToResultsButton = document.getElementById('back-to-results');
 
-        // --- Configuration Page ---
-        const configPage = document.getElementById('config-page');
-        const questionsPage = document.getElementById('questions-page');
-        const saveConfigButton = document.getElementById('saveConfigButton');
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        const baseUrlInput = document.getElementById('baseUrlInput');
-        const modelNameInput = document.getElementById('modelNameInput');
-        const configErrorMessage = document.getElementById('config-error-message');
+        // --- State Variables ---
+        let apiKey = '';
+        let baseUrl = '';
+        let modelName = '';
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+        let score = 0;
+        let quizSettings = { model: '', prompt: '', numQuestions: 0 };
+        let scoreHistory = JSON.parse(localStorage.getItem('scoreHistory')) || [];
 
-        if (saveConfigButton) { // Check if the element exists
-            saveConfigButton.addEventListener('click', function() {
-                const apiKey = apiKeyInput.value.trim();
-                const baseUrl = baseUrlInput.value.trim();
-                const modelName = modelNameInput.value.trim();
+        // --- Constants ---
+        const OPENROUTER_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
+        const OPENROUTER_REFERER_URL = window.location.origin || 'http://localhost';
+        const OPENROUTER_APP_NAME = 'AI-PYQ-Bot';
+        const MAX_RETRIES = 1;
+        const RETRY_DELAY_MS = 2000;
+        const REQUEST_TIMEOUT_MS = 90000;
 
-                if (!apiKey) {
-                    configErrorMessage.textContent = "Please enter your OpenRouter API Key.";
-                    return;
-                }
-                if (!baseUrl) {
-                    configErrorMessage.textContent = "Please enter your OpenRouter Base URL.";
-                    return;
-                }
-                if (!modelName) {
-                    configErrorMessage.textContent = "Please enter your OpenRouter Model Name.";
-                    return;
-                }
-
-                // Basic URL validation
-                try {
-                    new URL(baseUrl);
-                } catch (_) {
-                    configErrorMessage.textContent = "Please enter a valid Base URL (e.g., https://openrouter.ai/api/v1).";
-                    return;
-                }
-
-                localStorage.setItem('apiKey', apiKey);
-                localStorage.setItem('baseUrl', baseUrl);
-                localStorage.setItem('modelName', modelName);
-
-                configPage.style.display = 'none';
-                questionsPage.style.display = 'flex';
+        // --- Helper Functions ---
+        function showPage(pageId) {
+            [setupPage, customizationPage, quizPage, resultsPage, historyPage].forEach(page => {
+                page.classList.toggle('hidden-element', page.id !== pageId);
             });
+            window.scrollTo(0, 0);
         }
 
-
-        // --- Question Generation Page ---
-        const startQuizButton = document.getElementById('startQuizButton');
-        const questionPromptInput = document.getElementById('questionPromptInput');
-        const numQuestionsInput = document.getElementById('numQuestionsInput');
-        const questionsDisplayArea = document.getElementById('questionsDisplayArea');
-        const questionsErrorMessage = document.getElementById('questions-error-message');
-
-
-        if (startQuizButton) {
-            startQuizButton.addEventListener('click', async function() {
-                const apiKey = localStorage.getItem('apiKey');
-                const baseUrl = localStorage.getItem('baseUrl');
-                const modelName = localStorage.getItem('modelName');
-                const questionPrompt = questionPromptInput.value.trim();
-                const numQuestions = parseInt(numQuestionsInput.value);
-
-                if (!questionPrompt) {
-                    questionsErrorMessage.textContent = "Please describe the questions you want to generate.";
-                    return;
-                }
-                if (isNaN(numQuestions) || numQuestions < 1 || numQuestions > 25) {
-                    questionsErrorMessage.textContent = "Please enter a valid number of questions (1-25).";
-                    return;
-                }
-
-                questionsErrorMessage.textContent = '';
-                questionsDisplayArea.innerHTML = '<p class="text-gray-500 italic">Loading questions...</p>';
-
-                try {
-                    const response = await fetch(baseUrl, { //  Use the baseUrl
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${apiKey}`,
-                        },
-                        body: JSON.stringify({
-                            model: modelName, // Use the model name
-                            prompt: questionPrompt,
-                            max_tokens: 1500,
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        // Attempt to get the error message from the response
-                        let errorMessage = `OpenRouter API error: ${response.status} - ${response.statusText}`;
-                        try {
-                            const errorData = await response.json();
-                            if (errorData && errorData.error && errorData.error.message) {
-                                errorMessage += ` (${errorData.error.message})`;
-                            }
-                        } catch (jsonError) {
-                            // If we can't parse JSON, just use the basic error
-                        }
-                        throw new Error(errorMessage);
-                    }
-
-                    const data = await response.json();
-                    displayQuestions(data); //  Call a function to display
-                } catch (error) {
-                    console.error('Error fetching questions:', error);
-                    questionsDisplayArea.innerHTML = `<p class="text-red-500">Failed to fetch questions: ${error.message}</p>`;
-                }
-            });
+        function displayError(element, message) {
+            element.textContent = message;
+            element.classList.remove('hidden-element');
         }
 
+        function hideError(element) {
+            element.textContent = '';
+            element.classList.add('hidden-element');
+        }
 
-        function displayQuestions(data) {
-            questionsDisplayArea.innerHTML = '';
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-            if (data && data.choices && Array.isArray(data.choices)) {
-                if (data.choices.length === 0) {
-                    questionsDisplayArea.innerHTML = '<p class="text-gray-500 italic">No questions generated.</p>';
-                    return;
+        async function typesetMathJax(elements) {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                try {
+                    await window.MathJax.typesetClear(elements);
+                    return await window.MathJax.typesetPromise(elements);
+                } catch (mathJaxError) {
+                    console.error("MathJax typesetting error:", mathJaxError);
                 }
-                data.choices.forEach((choice, index) => {
-                    const questionElement = document.createElement('div');
-                    questionElement.classList.add('question', 'mb-4', 'p-4', 'rounded-md', 'bg-white', 'shadow-sm');
-                    // Use a regular expression to replace newlines with <br> tags for better formatting
-                    const formattedContent = choice.message.content.replace(/\n/g, '<br>');
-                    questionElement.innerHTML = `<p class="text-gray-800"><strong>Question ${index + 1}:</strong> ${formattedContent}</p>`;
-                    questionsDisplayArea.appendChild(questionElement);
-                });
             } else {
-                questionsDisplayArea.innerHTML = '<p class="text-gray-500 italic">Invalid response format from OpenRouter.</p>';
+                console.warn("MathJax not ready.");
             }
         }
 
-        // --- Initial Setup ---
-        // Check if API key and base URL are in localStorage, if so, skip config page
-        if (localStorage.getItem('apiKey') && localStorage.getItem('baseUrl') && localStorage.getItem('modelName')) {
-            configPage.style.display = 'none';
-            questionsPage.style.display = 'flex';
-        } else {
-            configPage.style.display = 'flex';
-            questionsPage.style.display = 'none';
+        // --- History Functions ---
+        function saveScoreToHistory() {
+            const historyEntry = {
+                date: new Date().toLocaleString(),
+                prompt: quizSettings.prompt,
+                score: `${score} / ${currentQuestions.length}`,
+                model: quizSettings.model
+            };
+            scoreHistory.push(historyEntry);
+            localStorage.setItem('scoreHistory', JSON.stringify(scoreHistory));
+            alert('Score saved to history!');
         }
+
+        function displayHistory() {
+            historyList.innerHTML = '';
+            if (scoreHistory.length === 0) {
+                historyList.innerHTML = '<p class="text-gray-400">No history available.</p>';
+            } else {
+                scoreHistory.forEach((entry, index) => {
+                    const entryDiv = document.createElement('div');
+                    entryDiv.classList.add('p-4', 'bg-gray-700', 'rounded-md', 'shadow');
+                    entryDiv.innerHTML = `
+                        <p><strong>Date:</strong> ${entry.date}</p>
+                        <p><strong>Prompt:</strong> ${entry.prompt}</p>
+                        <p><strong>Score:</strong> ${entry.score}</p>
+                        <p><strong>Model:</strong> ${entry.model}</p>
+                    `;
+                    historyList.appendChild(entryDiv);
+                });
+            }
+            showPage('history-page');
+        }
+
+        // --- Setup Page Logic ---
+        submitSetupButton.addEventListener('click', () => {
+            hideError(setupError);
+            let isValid = true;
+            const key = apiKeyInput.value.trim();
+            if (!key) {
+                displayError(setupError, "OpenRouter API Key is required.");
+                apiKeyInput.focus();
+                isValid = false;
+            } else {
+                apiKey = key;
+            }
+            const orModel = openRouterModelInput.value.trim();
+            if (!orModel) {
+                displayError(setupError, "OpenRouter Model Name is required.");
+                openRouterModelInput.focus();
+                isValid = false;
+            } else {
+                modelName = orModel;
+            }
+            baseUrl = baseUrlInput.value.trim() || OPENROUTER_DEFAULT_BASE_URL;
+            if (isValid) {
+                console.log("Setup Complete:", { model: modelName, apiKey: '***', baseUrl });
+                showPage('customization-page');
+            }
+        });
+
+        // --- Customization and Quiz Logic ---
+        startQuizButton.addEventListener('click', () => {
+            hideError(customizationError);
+            const prompt = questionPromptInput.value.trim();
+            const num = parseInt(numQuestionsInput.value, 10);
+            let isValid = true;
+            if (!prompt) {
+                displayError(customizationError, "Please enter a question prompt.");
+                questionPromptInput.focus();
+                isValid = false;
+            }
+            if (isNaN(num) || num < 1 || num > 25) {
+                displayError(customizationError, "Number of questions must be between 1 and 25.");
+                numQuestionsInput.focus();
+                isValid = false;
+            }
+            if (isValid) {
+                startNewQuiz(prompt, num);
+            }
+        });
+
+        backToSetupButton.addEventListener('click', () => {
+            showPage('setup-page');
+            hideError(setupError);
+            hideError(customizationError);
+        });
+
+        viewHistoryButton.addEventListener('click', displayHistory);
+
+        prevButton.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) displayQuestion(--currentQuestionIndex);
+        });
+
+        nextButton.addEventListener('click', () => {
+            if (currentQuestionIndex < currentQuestions.length - 1) displayQuestion(++currentQuestionIndex);
+        });
+
+        finishButton.addEventListener('click', () => {
+            if (currentQuestionIndex === currentQuestions.length - 1) showResults();
+        });
+
+        exitQuizButton.addEventListener('click', () => {
+            if (confirm("Exit quiz? Progress will be lost.")) {
+                showPage('customization-page');
+                currentQuestions = [];
+                userAnswers = [];
+                score = 0;
+                hideError(customizationError);
+            }
+        });
+
+        saveHistoryButton.addEventListener('click', saveScoreToHistory);
+
+        backToResultsButton.addEventListener('click', () => showPage('results-page'));
+
+        restartQuizButton.addEventListener('click', () => {
+            if (quizSettings.prompt && quizSettings.numQuestions > 0) {
+                modelName = quizSettings.model;
+                openRouterModelInput.value = modelName;
+                questionPromptInput.value = quizSettings.prompt;
+                numQuestionsInput.value = quizSettings.numQuestions;
+                showPage('customization-page');
+                setTimeout(() => startNewQuiz(quizSettings.prompt, quizSettings.numQuestions), 50);
+            } else {
+                console.error("Cannot restart, previous settings missing.");
+                showPage('customization-page');
+            }
+        });
+
+        newQuizButton.addEventListener('click', () => {
+            showPage('customization-page');
+            hideError(customizationError);
+        });
+
+        // --- API and Question Generation ---
+        async function generateSingleQuestion(questionType, modelName, attemptNum, totalRequested) {
+            const url = baseUrl.replace(/\/$/, '') + '/chat/completions';
+            const prompt = `
+                Generate a single multiple-choice question (MCQ) based on: "${questionType}". 
+                The question must have:
+                - A question stem (e.g., similar to JEE Main 2025 PYQs like 'The position of a particle moving on x-axis is given by x(t) = A sin t + B cos^2 t + C t^2 + D, where t is time. The dimension of ABC/D is').
+                - Exactly 4 options labeled A, B, C, D within an "options" object.
+                - The correct answer as "correctAnswerIndex" (0-based index).
+                - An explanation.
+                Format the response as a valid JSON object with "question", "options" (with A, B, C, D as properties), "correctAnswerIndex", and "explanation" fields. 
+                Use LaTeX (e.g., $...$ or $$...$$) for mathematical equations where applicable. 
+                If PYQs are requested (e.g., JEE Main 2025), ensure the question is based on real previous year questions or closely mimics them. 
+                Do not generate random unrelated questions. Ensure the JSON is complete and properly closed.
+            `;
+
+            const payload = {
+                model: modelName,
+                messages: [
+                    { role: "system", content: "You are an expert AI assistant generating educational MCQs in strict JSON format." },
+                    { role: "user", content: prompt }
+                ],
+                temperature: 0.5,
+                stream: false
+            };
+            const headers = {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': OPENROUTER_REFERER_URL,
+                'X-Title': OPENROUTER_APP_NAME
+            };
+
+            let lastError = null;
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+                try {
+                    if (attempt > 0) {
+                        console.log(`Retrying question ${attemptNum} (Attempt ${attempt}/${MAX_RETRIES})...`);
+                        await delay(RETRY_DELAY_MS);
+                    }
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(payload),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error for question ${attemptNum}! Status: ${response.status}, Details: ${errorText}`);
+                    }
+
+                    const data = await response.json();
+                    console.log(`API Response for question ${attemptNum}:`, data);
+
+                    if (!data.choices || !data.choices.length || !data.choices[0].message || !data.choices[0].message.content) {
+                        throw new Error(`Invalid response format for question ${attemptNum}`);
+                    }
+
+                    let content = data.choices[0].message.content.trim();
+                    let question;
+
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        content = jsonMatch[0];
+                    }
+
+                    try {
+                        question = JSON.parse(content);
+                    } catch (parseError) {
+                        console.error(`Raw content for question ${attemptNum}:`, content);
+                        throw new Error(`Failed to parse JSON for question ${attemptNum}: ${parseError.message}`);
+                    }
+
+                    if (!question.question || 
+                        !question.options || 
+                        !['A', 'B', 'C', 'D'].every(key => key in question.options) || 
+                        typeof question.correctAnswerIndex !== 'number' || 
+                        question.correctAnswerIndex < 0 || question.correctAnswerIndex > 3 || 
+                        !question.explanation) {
+                        throw new Error(`Invalid question structure for question ${attemptNum}: ${JSON.stringify(question)}`);
+                    }
+
+                    return {
+                        question: question.question,
+                        options: [question.options.A, question.options.B, question.options.C, question.options.D].filter(opt => opt),
+                        correctAnswerIndex: question.correctAnswerIndex,
+                        explanation: question.explanation
+                    };
+                } catch (error) {
+                    lastError = error;
+                    console.error(`Error for question ${attemptNum} (Attempt ${attempt}):`, error);
+                    if (attempt === MAX_RETRIES) {
+                        console.warn(`Skipping question ${attemptNum} after retries due to: ${error.message}`);
+                        return null;
+                    }
+                }
+            }
+            return null;
+        }
+
+        async function generateQuestions(questionType, numQuestions, modelName) {
+            const questions = [];
+            let failedCount = 0;
+
+            for (let i = 0; i < numQuestions; i++) {
+                loadingText.textContent = `Generating question ${i + 1} of ${numQuestions}...`;
+                loadingIndicator.classList.remove('hidden-element');
+
+                const question = await generateSingleQuestion(questionType, modelName, i + 1, numQuestions);
+                if (question) {
+                    questions.push(question);
+                } else {
+                    failedCount++;
+                }
+            }
+
+            const remaining = numQuestions - questions.length;
+            if (remaining > 0) {
+                loadingText.textContent = `Generating ${remaining} additional question${remaining > 1 ? 's' : ''} to reach ${numQuestions}...`;
+                for (let i = 0; i < remaining; i++) {
+                    const extraQuestion = await generateSingleQuestion(questionType, modelName, numQuestions + i + 1, numQuestions);
+                    if (extraQuestion) {
+                        questions.push(extraQuestion);
+                    } else {
+                        failedCount++;
+                        console.warn(`Failed to generate additional question ${i + 1} of ${remaining}`);
+                    }
+                }
+            }
+
+            loadingIndicator.classList.add('hidden-element');
+            if (questions.length < numQuestions) {
+                displayError(customizationError, `Generated only ${questions.length} of ${numQuestions} questions due to ${failedCount} failures. Check console for details.`);
+            }
+            return questions.length > 0 ? questions : [];
+        }
+
+        async function startNewQuiz(prompt, num) {
+            hideError(customizationError);
+            quizSettings = { model: modelName, prompt, numQuestions: num };
+            loadingIndicator.classList.remove('hidden-element');
+            startQuizButton.disabled = true;
+
+            const questions = await generateQuestions(prompt, num, modelName);
+            if (questions.length > 0) {
+                currentQuestions = questions;
+                currentQuestionIndex = 0;
+                userAnswers = [];
+                score = 0;
+                showPage('quiz-page');
+                await displayQuestion(currentQuestionIndex);
+            } else {
+                displayError(customizationError, "Failed to generate any questions. Check your prompt, model, or API key.");
+            }
+            loadingIndicator.classList.add('hidden-element');
+            startQuizButton.disabled = false;
+        }
+
+        async function displayQuestion(index) {
+            if (index < 0 || index >= currentQuestions.length) return;
+            const questionData = currentQuestions[index];
+            questionTextElement.textContent = questionData.question;
+            optionsContainer.innerHTML = '';
+            feedbackTextElement.textContent = '';
+            explanationArea.classList.add('hidden-element');
+            explanationTextElement.textContent = '';
+
+            questionData.options.forEach((option, i) => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('option-button', 'w-full', 'text-left', 'p-3', 'border', 'border-gray-600', 'rounded-md', 'shadow-sm', 'bg-gray-700', 'hover:bg-gray-600', 'focus:outline-none', 'focus:ring-2', 'focus:ring-offset-1', 'focus:ring-indigo-400', 'transition', 'duration-150');
+                button.dataset.index = i;
+                button.onclick = () => selectAnswer(index, i);
+                optionsContainer.appendChild(button);
+            });
+
+            const currentQuestionNum = index + 1;
+            const totalQuestions = currentQuestions.length;
+            progressTextElement.textContent = `Question ${currentQuestionNum} / ${totalQuestions}`;
+            progressBarElement.style.width = `${(currentQuestionNum / totalQuestions) * 100}%`;
+
+            await typesetMathJax([questionTextElement, optionsContainer]);
+
+            const answered = userAnswers.find(ans => ans.questionIndex === index);
+            prevButton.disabled = index === 0;
+            nextButton.classList.toggle('hidden-element', index === totalQuestions - 1);
+            finishButton.classList.toggle('hidden-element', index !== totalQuestions - 1);
+            nextButton.disabled = !answered;
+            finishButton.disabled = !answered;
+
+            if (answered) {
+                highlightAnswer(answered.selectedOptionIndex, answered.isCorrect, index);
+                disableOptions();
+                await showExplanation(questionData);
+            } else {
+                enableOptions();
+            }
+        }
+
+        function selectAnswer(questionIndex, selectedOptionIndex) {
+            if (userAnswers.some(ans => ans.questionIndex === questionIndex)) return;
+            const questionData = currentQuestions[questionIndex];
+            const isCorrect = selectedOptionIndex === questionData.correctAnswerIndex;
+            userAnswers.push({ questionIndex, selectedOptionIndex, isCorrect });
+            if (isCorrect) score++;
+            highlightAnswer(selectedOptionIndex, isCorrect, questionIndex);
+            disableOptions();
+            feedbackTextElement.textContent = isCorrect ? 'Correct!' : 'Incorrect!';
+            feedbackTextElement.classList.add(isCorrect ? 'text-green-500' : 'text-red-500');
+            feedbackTextElement.classList.remove(!isCorrect ? 'text-green-500' : 'text-red-500');
+            showExplanation(questionData);
+            if (currentQuestionIndex === currentQuestions.length - 1) finishButton.disabled = false;
+            else nextButton.disabled = false;
+        }
+
+        async function showExplanation(questionData) {
+            if (questionData.explanation) {
+                explanationTextElement.textContent = questionData.explanation;
+                explanationArea.classList.remove('hidden-element');
+                await typesetMathJax([explanationTextElement]);
+            } else {
+                explanationArea.classList.add('hidden-element');
+            }
+        }
+
+        function highlightAnswer(selectedIndex, isCorrect, questionIndex) {
+            const buttons = optionsContainer.querySelectorAll('button');
+            const correctIndex = currentQuestions[questionIndex].correctAnswerIndex;
+            buttons.forEach((button, i) => {
+                button.classList.remove('selected-answer', 'correct-answer', 'incorrect-answer', 'hover:bg-gray-600', 'opacity-80');
+                if (i === selectedIndex) {
+                    button.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
+                } else if (i === correctIndex && !isCorrect) {
+                    button.classList.add('correct-answer', 'opacity-80');
+                }
+            });
+        }
+
+        function disableOptions() {
+            optionsContainer.querySelectorAll('button').forEach(button => {
+                button.disabled = true;
+                button.classList.add('opacity-75', 'cursor-not-allowed');
+                button.classList.remove('hover:bg-gray-600');
+            });
+        }
+
+        function enableOptions() {
+            optionsContainer.querySelectorAll('button').forEach(button => {
+                button.disabled = false;
+                button.classList.remove('opacity-75', 'cursor-not-allowed', 'correct-answer', 'incorrect-answer', 'opacity-80');
+                button.classList.add('hover:bg-gray-600');
+            });
+        }
+
+        function showResults() {
+            finalScoreElement.textContent = `${score} / ${currentQuestions.length}`;
+            showPage('results-page');
+        }
+
+        // --- Initial Setup ---
+        showPage('setup-page');
     </script>
 </body>
 </html>
